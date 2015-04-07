@@ -29,6 +29,12 @@ module United
       end
     end
 
+    def save_results
+      @flights.each do |f|
+        f.save!
+      end
+    end
+
     def load_form
       page = Mechanize.new.get('https://www.united.com/web/en-US/apps/booking/flight/searchOW.aspx?CS=N')
       @form = page.forms.first
@@ -99,16 +105,27 @@ module United
       attrs[:business_saver_miles], attrs[:business_saver_usd] = parse_price_td(business_saver_td)
       attrs[:first_saver_miles],    attrs[:first_saver_usd]    = parse_price_td(first_saver_td)
 
-      attrs[:segments_attrs] = []
+      attrs[:segments_attributes] = []
 
+      position = 1
       tr_row.search('.tdSegmentBlock tr').each do |segment_tr|
         if segment_attrs = parse_segment_tr(segment_tr)
-          attrs[:segments_attrs] << segment_attrs
+          segment_attrs[:position] = position
+          attrs[:segments_attributes] << segment_attrs
+          position += 1
         end
       end
-debugger
-      attrs
-      # Flight.new(attrs)
+
+      total_travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
+
+      if match = total_travel_time_str.match(/(\d+)\s?hr?\s(\d+)?\smn/)
+        hours = match[1].to_i
+        minutes = match[2].to_i
+        attrs[:total_travel_time] = hours * 60 + minutes
+      end
+
+
+      Flight.new(attrs)
     end
 
     def parse_price_td(price_td)
@@ -160,6 +177,14 @@ debugger
         hours = match[1].to_i
         minutes = match[2].to_i
         attrs[:travel_time] = hours * 60 + minutes
+      else
+        travel_time_str = segment_tr.search('.tdTrvlTime span.PHead').first.content
+
+        if match = travel_time_str.match(/(\d+)\s?hr?\s(\d+)?\smn/)
+          hours = match[1].to_i
+          minutes = match[2].to_i
+          attrs[:travel_time] = hours * 60 + minutes
+        end
       end
     
       if td_segment_dtl = segment_tr.search('.tdSegmentDtl').first
@@ -199,6 +224,7 @@ if false
   rp = United::ResultsPage.new
   rp.set_default_options
   rp.load_results
+  rp.save_results
 
   rp.flights
 

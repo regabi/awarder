@@ -4,6 +4,7 @@ class CreateFlights < ActiveRecord::Migration
       t.string :from_airport
       t.string :to_airport
 
+      t.datetime :local_date
       t.datetime :local_departs_at
       t.datetime :local_arrives_at
 
