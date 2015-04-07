@@ -261,24 +261,47 @@ module United
 end
 
 
-if false
+def search_one
 
   rp = United::ResultsPage.new
   rp.set_default_options
-  rp.set_options(:to_airport => 'LHR')
+
+  rp.set_options({
+          date: Date.parse('2015-04-10'),
+          from_airport: 'LHR', 
+          to_airport: 'MUC' 
+  })
   rp.load_results
   rp.save_results
 
   rp.flights
 end
 
+ROUTE_PAIRS = [["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["LAX", "LHR"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["LAX", "IST"], ["YYZ", "IST"], ["SFO", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["LAX", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["SFO", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["LAX", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["SEA", "FRA"], ["YVR", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["LAX", "MUC"], ["SFO", "MUC"], ["YUL", "MUC"], ["YVR", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["SFO", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
 
-def search_many
-  
+
+def search_all_routes
+  date = Date.parse '2015-06-19'
+
+  ROUTE_PAIRS.each do |from_airport, to_airport|
+    rp = United::ResultsPage.new
+    rp.set_default_options
+    rp.set_options({
+      date: date,
+      from_airport: from_airport, 
+      to_airport: to_airport
+    })
+
+    rp.load_results
+    rp.save_results
+  end
+end
+
+def search_many  
   # from_airports = [ 'LAX', 'SFO', 'ORD', 'IAH' ]
   # from_airports = [ 'SFO', 'LAX', 'ORD', 'EWR', 'IAH' ]
   from_airports = [ 'SFO', 'LAX' ]
-  to_airports = %w/NRT ICN HKG/
+  to_airports = %w/DUB/
   from_date = Date.parse '2015-04-09'
   to_date = Date.parse '2015-04-15'
 
