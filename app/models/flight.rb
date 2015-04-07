@@ -15,4 +15,10 @@ class Flight < ActiveRecord::Base
 
     self.local_date = segments.first.local_departs_at.to_date
   end
+
+  def save_if_premium_class!
+    if business_saver_miles or first_saver_miles
+      save!
+    end
+  end
 end

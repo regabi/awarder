@@ -7,6 +7,12 @@ module United
 
     def set_options(options={})
       @options = options
+
+      @from_airport = options[:from_airport] if options[:from_airport]
+      @to_airport = options[:to_airport] if options[:to_airport]
+      @date = options[:date] if options[:date]
+      @cabin = options[:cabin] if options[:cabin]
+      @adults = options[:adults] if options[:adults]
     end
 
     def set_default_options
@@ -17,8 +23,13 @@ module United
       @adults = 2
     end
 
+    def search_to_s
+      "#{@date.to_s} #{@from_airport} > #{@to_airport}"
+    end
+
     def load_results
       begin
+        puts "Searching #{search_to_s}"
         load_form
         enter_form_values
         submit_form
@@ -31,11 +42,13 @@ module United
 
     def save_results
       @flights.each do |f|
-        f.save!
+        f.save_if_premium_class!
       end
     end
 
     def load_form
+      return @form if @form
+
       page = Mechanize.new.get('https://www.united.com/web/en-US/apps/booking/flight/searchOW.aspx?CS=N')
       @form = page.forms.first
 
@@ -109,21 +122,15 @@ module United
 
       position = 1
       tr_row.search('.tdSegmentBlock tr').each do |segment_tr|
-        if segment_attrs = parse_segment_tr(segment_tr)
+        if segment_attrs = parse_segment_tr(segment_tr, position)
           segment_attrs[:position] = position
           attrs[:segments_attributes] << segment_attrs
           position += 1
         end
       end
 
-      total_travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
-
-      if match = total_travel_time_str.match(/(\d+)\s?hr?\s(\d+)?\smn/)
-        hours = match[1].to_i
-        minutes = match[2].to_i
-        attrs[:total_travel_time] = hours * 60 + minutes
-      end
-
+      travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
+      attrs[:total_travel_time] = parse_travel_time(travel_time_str)
 
       Flight.new(attrs)
     end
@@ -143,7 +150,7 @@ module United
       end
     end
 
-    def parse_segment_tr(segment_tr)
+    def parse_segment_tr(segment_tr, position)
       attrs = {}
 
       if td_depart = segment_tr.search('.tdDepart').first
@@ -172,19 +179,11 @@ module United
         end
       end
 
-      travel_time_str = segment_tr.search('.tdTrvlTime').first.content
-      if match = travel_time_str.match(/Flight Time:(\d+)\s?hr?\s(\d+)?\smn/)
-        hours = match[1].to_i
-        minutes = match[2].to_i
-        attrs[:travel_time] = hours * 60 + minutes
-      else
-        travel_time_str = segment_tr.search('.tdTrvlTime span.PHead').first.content
+      if travel_time_str = segment_tr.search('.tdTrvlTime').first.content
+        attrs[:travel_time] = parse_travel_time(travel_time_str)
 
-        if match = travel_time_str.match(/(\d+)\s?hr?\s(\d+)?\smn/)
-          hours = match[1].to_i
-          minutes = match[2].to_i
-          attrs[:travel_time] = hours * 60 + minutes
-        end
+      elsif travel_time_str = segment_tr.search('.tdTrvlTime span.PHead').first.content
+        attrs[:travel_time] = parse_travel_time(travel_time_str)
       end
     
       if td_segment_dtl = segment_tr.search('.tdSegmentDtl').first
@@ -201,7 +200,50 @@ module United
         end
       end
 
+      attrs[:position] = position
       attrs
+    rescue
+      puts "Failed parsing flight row position: #{position}"
+      raise
+    end
+
+
+    def parse_travel_time(travel_time_str)
+      original_travel_time_str = travel_time_str.dup
+      travel_time_str = travel_time_str.strip.downcase
+
+      if match = travel_time_str.match(/flight time:(.*)\s*travel time(.*)/)
+        # both times are returned
+        travel_time_str = match[1]
+      end
+
+      travel_time_str = travel_time_str.gsub('flight time:', '')
+      travel_time_str = travel_time_str.gsub('travel time:', '')
+
+      match = travel_time_str.match(/(\d+)(\s?hr\s?)?(\d+)?(\s?mn)?/)
+      
+      if match[1] and match[2] and match[3] and match[4]
+        # 1 hr 15 min
+        hours = match[1].to_i
+        minutes = match[3].to_i
+      else
+        if match[2] and match[2].match('hr')
+          # 1 hr
+          hours = match[1].to_i
+          minutes = 0
+        else
+          # 15 min
+          hours = 0
+          minutes = match[1].to_i
+        end
+      end
+
+      total_minutes = hours * 60 + minutes
+      total_minutes      
+
+    rescue => ex
+      debugger
+      raise
     end
 
     def form
@@ -223,10 +265,41 @@ if false
 
   rp = United::ResultsPage.new
   rp.set_default_options
+  rp.set_options(:to_airport => 'LHR')
   rp.load_results
   rp.save_results
 
   rp.flights
+end
 
+
+def search_many
+  
+  # from_airports = [ 'LAX', 'SFO', 'ORD', 'IAH' ]
+  # from_airports = [ 'SFO', 'LAX', 'ORD', 'EWR', 'IAH' ]
+  from_airports = [ 'SFO', 'LAX' ]
+  to_airports = %w/NRT ICN HKG/
+  from_date = Date.parse '2015-04-09'
+  to_date = Date.parse '2015-04-15'
+
+
+  from_airports.each do |from_airport|
+    to_airports.each do |to_airport|
+      (from_date..to_date).each do |date|
+        next if from_airport == to_airport
+
+        rp = United::ResultsPage.new
+        rp.set_default_options
+        rp.set_options({
+          date: date,
+          from_airport: from_airport, 
+          to_airport: to_airport
+        })
+
+        rp.load_results
+        rp.save_results
+      end
+    end
+  end
 
 end
