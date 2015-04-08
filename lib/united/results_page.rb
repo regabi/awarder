@@ -20,7 +20,7 @@ module United
       @to_airport = 'CPH'
       @date = Date.new(2015, 06, 21)
       @cabin = 'Business'
-      @adults = 2
+      @seats = 2
     end
 
     def search_to_s
@@ -41,9 +41,19 @@ module United
     end
 
     def save_results
-      @flights.each do |f|
-        f.save_if_premium_class!
-      end
+      premium_itineraries = @itineraries.select { |i| i.business_miles or i.first_miles }
+      attrs = united_search_attributes.merge(itineraries: premium_itineraries)
+
+      UnitedSearch.new(attrs).save!
+    end
+
+    def united_search_attributes
+      { 
+        from_airport: @from_airport,
+        to_airport: @to_airport,
+        local_date: @date,
+        seats: @seats
+      }
     end
 
     def load_form
@@ -80,7 +90,7 @@ module United
 
       adults_select = @form.fields_with(name: 'ctl00$ContentInfo$SearchForm$paxSelection$Adults$cboAdults').first
       raise "can't find 'adult' field" unless adults_select
-      adults_select.value = @adults
+      adults_select.value = @seats
 
       # award search
       reward_radio = @form.radiobutton_with(name: 'ctl00$ContentInfo$SearchForm$searchBy$SearchBy', value: 'rdosearchby3')
@@ -94,45 +104,40 @@ module United
     end
 
     def parse_results    
-      @flights = [ ]
+      @itineraries = [ ]
 
       @results_page.search('table.rewardResults > tr').each do |tr_row|
-        if flight = parse_flight_row(tr_row)
-          @flights << flight
+        if itinerary = parse_itinerary_row(tr_row)
+          @itineraries << itinerary
         end
       end
     end
 
 
-    def parse_flight_row(tr_row)
+    def parse_itinerary_row(tr_row)
       if !tr_row.attributes['id'].nil?
         # headers on page
         return nil
       end
 
-      attrs = {}
+      itinerary_attributes = { segments_attributes: [] }
 
       coach_saver_td, coach_standard_td, business_saver_td, business_standard_td, first_saver_td, first_standard_td = tr_row.search('td.tdRewardPrice')
 
-      attrs[:coach_saver_miles],    attrs[:coach_saver_usd]    = parse_price_td(coach_saver_td)
-      attrs[:business_saver_miles], attrs[:business_saver_usd] = parse_price_td(business_saver_td)
-      attrs[:first_saver_miles],    attrs[:first_saver_usd]    = parse_price_td(first_saver_td)
+      itinerary_attributes[:economy_miles],  itinerary_attributes[:economy_usd]  = parse_price_td(coach_saver_td)
+      itinerary_attributes[:business_miles], itinerary_attributes[:business_usd] = parse_price_td(business_saver_td)
+      itinerary_attributes[:first_miles],    itinerary_attributes[:first_usd]    = parse_price_td(first_saver_td)
 
-      attrs[:segments_attributes] = []
-
-      position = 1
       tr_row.search('.tdSegmentBlock tr').each do |segment_tr|
-        if segment_attrs = parse_segment_tr(segment_tr, position)
-          segment_attrs[:position] = position
-          attrs[:segments_attributes] << segment_attrs
-          position += 1
+        if segment_attrs = parse_segment_tr(segment_tr)
+          itinerary_attributes[:segments_attributes] << segment_attrs
         end
       end
 
       travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
-      attrs[:total_travel_time] = parse_travel_time(travel_time_str)
+      itinerary_attributes[:total_travel_time] = parse_travel_time(travel_time_str)
 
-      Flight.new(attrs)
+      Itinerary.new(itinerary_attributes)
     end
 
     def parse_price_td(price_td)
@@ -150,13 +155,14 @@ module United
       end
     end
 
-    def parse_segment_tr(segment_tr, position)
+    def parse_segment_tr(segment_tr)
       attrs = {}
 
       if td_depart = segment_tr.search('.tdDepart').first
         time_str = td_depart.elements[1].content
         date_str = td_depart.elements[2].content
-        attrs[:local_departs_at] = Time.parse("#{date_str} #{time_str}")
+        attrs[:local_departs_at] = Time.parse("#{date_str} #{time_str}").to_s(:db)
+        attrs[:local_date] = Date.parse(date_str)
 
         airport_str = td_depart.elements[3].content
         if match = airport_str.match(/\(([A-Z]{3,4})(\s.*)?\)/)
@@ -171,7 +177,7 @@ module United
       if td_arrive = segment_tr.search('.tdArrive').first
         time_str = td_arrive.elements[1].content
         date_str = td_arrive.elements[2].content
-        attrs[:local_arrives_at] =Time.parse("#{date_str} #{time_str}")
+        attrs[:local_arrives_at] =Time.parse("#{date_str} #{time_str}").to_s(:db)
 
         airport_str = td_arrive.elements[3].content
         if match = airport_str.match(/\(([A-Z]{3,4})(\s.*)?\)/)
@@ -200,10 +206,9 @@ module United
         end
       end
 
-      attrs[:position] = position
       attrs
     rescue
-      puts "Failed parsing flight row position: #{position}"
+      puts "Failed parsing flight html: #{segment_tr.to_s}"
       raise
     end
 
@@ -262,14 +267,13 @@ end
 
 
 def search_one
-
   rp = United::ResultsPage.new
   rp.set_default_options
 
   rp.set_options({
-          date: Date.parse('2015-04-10'),
-          from_airport: 'LHR', 
-          to_airport: 'MUC' 
+    date: Date.parse('2015-04-10'),
+    from_airport: 'LHR', 
+    to_airport: 'MUC' 
   })
   rp.load_results
   rp.save_results
@@ -277,33 +281,39 @@ def search_one
   rp.flights
 end
 
-ROUTE_PAIRS = [["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["LAX", "LHR"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["LAX", "IST"], ["YYZ", "IST"], ["SFO", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["LAX", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["SFO", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["LAX", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["SEA", "FRA"], ["YVR", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["LAX", "MUC"], ["SFO", "MUC"], ["YUL", "MUC"], ["YVR", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["SFO", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
+STAR_ALLIANCE_TATL_ROUTE_PAIRS = [["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["LAX", "LHR"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["LAX", "IST"], ["YYZ", "IST"], ["SFO", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["LAX", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["SFO", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["LAX", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["SEA", "FRA"], ["YVR", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["LAX", "MUC"], ["SFO", "MUC"], ["YUL", "MUC"], ["YVR", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["SFO", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
 
 
-def search_all_routes
-  date = Date.parse '2015-06-19'
+def search_all_routes(options)
+  if options[:date]
+    dates = [ Date.parse(options[:date]) ]
+  else
+    dates = [Date.parse('2015-06-20'), Date.parse('2015-06-21') ]
+  end
 
-  ROUTE_PAIRS.each do |from_airport, to_airport|
-    rp = United::ResultsPage.new
-    rp.set_default_options
-    rp.set_options({
-      date: date,
-      from_airport: from_airport, 
-      to_airport: to_airport
-    })
-
-    rp.load_results
-    rp.save_results
+  dates.each do |date|
+    STAR_ALLIANCE_TATL_ROUTE_PAIRS.each do |from_airport, to_airport|
+      rp = United::ResultsPage.new
+      rp.set_default_options
+      rp.set_options({
+        date: date,
+        from_airport: from_airport, 
+        to_airport: to_airport
+      })
+debugger
+      rp.load_results
+      rp.save_results
+    end
   end
 end
 
 def search_many  
   # from_airports = [ 'LAX', 'SFO', 'ORD', 'IAH' ]
   # from_airports = [ 'SFO', 'LAX', 'ORD', 'EWR', 'IAH' ]
-  from_airports = [ 'SFO', 'LAX' ]
-  to_airports = %w/DUB/
-  from_date = Date.parse '2015-04-09'
-  to_date = Date.parse '2015-04-15'
+  from_airports = [ 'KIX', 'NRT', 'HND' ]
+  to_airports = %w/SIN BKK/
+  from_date = Date.parse '2015-12-07'
+  to_date = Date.parse '2015-12-11'
 
 
   from_airports.each do |from_airport|
