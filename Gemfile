@@ -35,7 +35,7 @@ gem 'sdoc', '~> 0.4.0', group: :doc
 gem 'mysql2'
 gem 'mechanize'
 gem 'launchy'
-
+gem 'acts_as_list'
 
 
 group :development, :test do

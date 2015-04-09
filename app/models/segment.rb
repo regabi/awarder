@@ -1,7 +1,10 @@
 class Segment < ActiveRecord::Base
 
-  has_and_belongs_to_many :itineraries
   after_initialize :set_date
+
+  has_many :itineraries_segments, :class_name => 'ItinerariesSegments'
+  has_many :itineraries, :through => :itineraries_segments
+
 
   def set_date
     self.local_date = local_departs_at.to_date
@@ -22,6 +25,9 @@ class Segment < ActiveRecord::Base
       }).first
 
       puts "Found: #{segment.attributes}"
+
+      segment.update_attributes(attributes)
+      
       return segment
     end
 

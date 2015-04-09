@@ -41,10 +41,10 @@ module United
     end
 
     def save_results
-      premium_itineraries = @itineraries.select { |i| i.business_miles or i.first_miles }
-      attrs = united_search_attributes.merge(itineraries: premium_itineraries)
+      # premium_itineraries = @itineraries.select { |i| i.business_miles or i.first_miles }
+      attrs = united_search_attributes.merge(itineraries: @itineraries)
 
-      UnitedSearch.new(attrs).save!
+      UnitedSearch.import(attrs)
     end
 
     def united_search_attributes
@@ -137,7 +137,7 @@ module United
       travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
       itinerary_attributes[:total_travel_time] = parse_travel_time(travel_time_str)
 
-      Itinerary.new(itinerary_attributes)
+      itinerary_attributes
     end
 
     def parse_price_td(price_td)
@@ -300,7 +300,7 @@ def search_all_routes(options)
         from_airport: from_airport, 
         to_airport: to_airport
       })
-debugger
+
       rp.load_results
       rp.save_results
     end
