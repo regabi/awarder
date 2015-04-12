@@ -12,7 +12,7 @@ module United
       @to_airport = options[:to_airport] if options[:to_airport]
       @date = options[:date] if options[:date]
       @cabin = options[:cabin] if options[:cabin]
-      @adults = options[:adults] if options[:adults]
+      @seats = options[:seats] if options[:seats]
     end
 
     def set_default_options
@@ -27,9 +27,19 @@ module United
       "#{@date.to_s} #{@from_airport} > #{@to_airport}"
     end
 
+    def validate_search!
+      raise "Missing: from_airport" unless @from_airport
+      raise "Missing: to_airport"   unless @to_airport
+      raise "Missing: date"         unless @date
+      raise "Missing: cabin"        unless @cabin
+      raise "Missing: seats"        unless @seats
+    end
+
     def load_results
       begin
         puts "Searching #{search_to_s}"
+        validate_search!
+
         load_form
         enter_form_values
         submit_form
@@ -122,14 +132,12 @@ module United
 
       itinerary_attributes = { segments_attributes: [] }
 
-      coach_saver_td, coach_standard_td, business_saver_td, business_standard_td, first_saver_td, first_standard_td = tr_row.search('td.tdRewardPrice')
 
-      itinerary_attributes[:economy_miles],  itinerary_attributes[:economy_usd]  = parse_price_td(coach_saver_td)
-      itinerary_attributes[:business_miles], itinerary_attributes[:business_usd] = parse_price_td(business_saver_td)
-      itinerary_attributes[:first_miles],    itinerary_attributes[:first_usd]    = parse_price_td(first_saver_td)
 
+      # segments
       tr_row.search('.tdSegmentBlock tr').each do |segment_tr|
         if segment_attrs = parse_segment_tr(segment_tr)
+          segment_attrs[:cabins_available] = []
           itinerary_attributes[:segments_attributes] << segment_attrs
         end
       end
@@ -137,11 +145,91 @@ module United
       travel_time_str = tr_row.search('.tdSegmentBlock .tdTrvlTime span.PHead').first.content.strip
       itinerary_attributes[:total_travel_time] = parse_travel_time(travel_time_str)
 
+
+
+      # price
+      coach_saver_td, coach_standard_td, business_saver_td, business_standard_td, first_saver_td, first_standard_td = tr_row.search('td.tdRewardPrice')
+      
+      economy_price = parse_price_td(coach_saver_td)
+      if economy_price != :na
+        itinerary_attributes[:economy_miles] = economy_price[:miles]
+        itinerary_attributes[:economy_usd] = economy_price[:usd]
+
+        itinerary_attributes[:segments_attributes].each do |segment_attribute|
+          segment_attribute[:cabins_available] << :economy
+        end
+      end
+
+
+      if business_price = parse_price_td(business_saver_td)
+        if business_price != :na
+          itinerary_attributes[:business_miles] = business_price[:miles]
+          itinerary_attributes[:business_usd] = business_price[:usd]
+
+          itinerary_attributes[:segments_attributes].each do |segment_attribute|
+            if business_price[:segment_mixed_cabins].any?
+              actual_cabin = business_price[:segment_mixed_cabins][segment_attribute[:segment_code]]
+              segment_attribute[:cabins_available] << actual_cabin
+            else
+              segment_attribute[:cabins_available] << :business
+            end
+          end
+        end
+      end        
+
+      if first_price = parse_price_td(first_saver_td)
+        if first_price != :na
+          debugger if itinerary_attributes.nil?
+          debugger if first_price.nil?
+          itinerary_attributes[:first_miles] = first_price[:miles]
+          itinerary_attributes[:first_usd] = first_price[:usd]
+
+          itinerary_attributes[:segments_attributes].each do |segment_attribute|
+            if first_price[:segment_mixed_cabins].any?
+              actual_cabin = first_price[:segment_mixed_cabins][segment_attribute[:segment_code]]
+              segment_attribute[:cabins_available] << actual_cabin
+            else
+              segment_attribute[:cabins_available] << :first
+            end
+          end
+        end
+      end
+
+      # dedupe cabins_available & set seats
+      itinerary_attributes[:segments_attributes].each do |segment_attributes|
+        segment_attributes[:cabins_available].uniq!
+        segment_attributes[:seats_searched] = @seats
+      end
+
       itinerary_attributes
     end
 
     def parse_price_td(price_td)
       return nil unless price_td
+
+      segment_mixed_cabins = {}
+
+      if mixed_cabin_div = price_td.search('.divMixedCabin').first
+        mixed_cabin_div_str = mixed_cabin_div.attributes['title'].value
+        mixed_cabin_div_str.split('|').each do |segment_cabin_str|
+          actual_cabin, reason = segment_cabin_str.split(',')
+          flight_description, cabin_description = actual_cabin.split('---')
+          segment_code = flight_description.split(' ').first
+
+          cabin = case cabin_description 
+                  when 'Economy', 'United Economy'
+                    :economy
+                  when 'Business', 'United Business', 'United BusinessFirst'
+                    :business
+                  when 'First', 'United Global First', 'United First'
+                    :first
+                  else
+                    raise "Dont know cabin description: #{cabin_description}"
+                  end
+
+          segment_mixed_cabins[segment_code] = cabin
+        end
+      end
 
       content = price_td.content.strip.gsub(/\s+/, ' ').gsub(',','')
 
@@ -151,7 +239,12 @@ module United
         match_data = content.match(/(\d+) Miles and \$(\d+\.\d+)/)
         miles = match_data[1]
         usd = match_data[2]
-        [ miles.to_i, usd.to_f ]
+
+        { 
+          miles: miles.to_i,
+          usd: usd.to_i,
+          segment_mixed_cabins: segment_mixed_cabins
+        }
       end
     end
 
@@ -199,6 +292,7 @@ module United
           if match = content.match(/Flight:\s?([A-Z]{2})(\d+)/)
             attrs[:airline_code] = match[1]
             attrs[:flight_number] = match[2]
+            attrs[:segment_code] = "#{match[1]}#{match[2]}"
 
           elsif match = content.match(/Aircraft: (.+)/)
             attrs[:aircraft] = match[1]
@@ -263,76 +357,4 @@ module United
       @results_page
     end
   end
-end
-
-
-def search_one
-  rp = United::ResultsPage.new
-  rp.set_default_options
-
-  rp.set_options({
-    date: Date.parse('2015-04-10'),
-    from_airport: 'LHR', 
-    to_airport: 'MUC' 
-  })
-  rp.load_results
-  rp.save_results
-
-  rp.flights
-end
-
-STAR_ALLIANCE_TATL_ROUTE_PAIRS = [["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["LAX", "LHR"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["LAX", "IST"], ["YYZ", "IST"], ["SFO", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["LAX", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["SFO", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["LAX", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["SEA", "FRA"], ["YVR", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["LAX", "MUC"], ["SFO", "MUC"], ["YUL", "MUC"], ["YVR", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["SFO", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
-
-
-def search_all_routes(options)
-  if options[:date]
-    dates = [ Date.parse(options[:date]) ]
-  else
-    dates = [Date.parse('2015-06-20'), Date.parse('2015-06-21') ]
-  end
-
-  dates.each do |date|
-    STAR_ALLIANCE_TATL_ROUTE_PAIRS.each do |from_airport, to_airport|
-      rp = United::ResultsPage.new
-      rp.set_default_options
-      rp.set_options({
-        date: date,
-        from_airport: from_airport, 
-        to_airport: to_airport
-      })
-
-      rp.load_results
-      rp.save_results
-    end
-  end
-end
-
-def search_many  
-  # from_airports = [ 'LAX', 'SFO', 'ORD', 'IAH' ]
-  # from_airports = [ 'SFO', 'LAX', 'ORD', 'EWR', 'IAH' ]
-  from_airports = [ 'KIX', 'NRT', 'HND' ]
-  to_airports = %w/SIN BKK/
-  from_date = Date.parse '2015-12-07'
-  to_date = Date.parse '2015-12-11'
-
-
-  from_airports.each do |from_airport|
-    to_airports.each do |to_airport|
-      (from_date..to_date).each do |date|
-        next if from_airport == to_airport
-
-        rp = United::ResultsPage.new
-        rp.set_default_options
-        rp.set_options({
-          date: date,
-          from_airport: from_airport, 
-          to_airport: to_airport
-        })
-
-        rp.load_results
-        rp.save_results
-      end
-    end
-  end
-
 end
