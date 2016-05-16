@@ -37,13 +37,20 @@ class Segment < ActiveRecord::Base
       local_date = attributes[:local_departs_at].to_date
     end
 
-    print "[#{local_date}] #{attributes[:airline_code]} #{attributes[:flight_number]} #{attributes[:from_airport]} > #{attributes[:to_airport]} "
-    # print " #{attributes[:cabins_available].join(', ')} "
-    print " economy" if attributes[:economy_available]
-    print " premium_economy" if attributes[:premium_economy_available]
-    print " business" if attributes[:business_available]
-    print " first" if attributes[:first_available]
+    anything_available = attributes[:economy_available] or attributes[:business_available] or attributes[:premium_economy_available] or attributes[:first_available]
 
+    if anything_available
+      puts ""
+      print "[#{local_date}] #{attributes[:airline_code]} #{attributes[:flight_number]} #{attributes[:from_airport]} > #{attributes[:to_airport]} "
+      # print " #{attributes[:cabins_available].join(', ')} "
+      print " economy" if attributes[:economy_available]
+      print " premium_economy" if attributes[:premium_economy_available]
+      print " business" if attributes[:business_available]
+      print " first" if attributes[:first_available]
+    else
+      print "."
+    end
+    
     if segment = Segment.where({
         from_airport:  attributes[:from_airport], 
         local_date:    local_date,
@@ -51,16 +58,13 @@ class Segment < ActiveRecord::Base
         flight_number: attributes[:flight_number]
       }).first
 
-      puts ""
 
       segment.update_attributes(attributes)
       
       return segment
     end
 
-
     segment = Segment.create(attributes)
-    puts ""
     segment
   end
 

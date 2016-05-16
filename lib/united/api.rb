@@ -52,9 +52,11 @@ module United
         segment = {}
         segment[:from_airport] = f["Origin"]
         segment[:to_airport] = f["Destination"]
-        segment[:local_departs_at] = Time.parse(f["DepartDateTime"] + ' UTC')
-        segment[:local_arrives_at] = Time.parse(f["DestinationDateTime"] + ' UTC')
-        # segment[:travel_time] = 0
+
+        segment[:local_departs_at] = parse_datetime(f["DepartDateTime"])
+        segment[:local_arrives_at] =parse_datetime(f["DepartDateTime"])
+        segment[:travel_time] = f["TravelMinutes"]
+
         segment[:airline_code] = f["OperatingCarrier"]
         segment[:flight_number] =f["FlightNumber"]
 
@@ -82,8 +84,10 @@ module United
             segment[:from_airport] = conn["Origin"]
             segment[:to_airport] = conn["Destination"]
 
-            segment[:local_departs_at] = Time.parse(conn["DepartDateTime"] + ' UTC')
-            segment[:local_arrives_at] = Time.parse(f["DestinationDateTime"] + ' UTC')
+            segment[:local_departs_at] = parse_datetime(conn["DepartDateTime"])
+            segment[:local_arrives_at] = parse_datetime(conn["DestinationDateTime"])
+            segment[:travel_time] = conn["TravelMinutes"]
+
             # segment[:travel_time] = 0
             segment[:airline_code] = conn["OperatingCarrier"]
             segment[:flight_number] = conn["FlightNumber"]
@@ -99,7 +103,6 @@ module United
                   nil
                 end
             end
-
 
             # debugger if segment[:flight_number].to_i == 433
             iti[:segments_attributes] << segment
@@ -157,6 +160,12 @@ module United
 
     def date_param
       @local_date.strftime('%b %d, %Y')
+    end
+
+    def parse_datetime(dt)
+      Time.use_zone('UTC') do
+        DateTime.strptime(dt, "%m/%d/%Y %H:%M")
+      end
     end
 
     CABIN_MAPPING = {
