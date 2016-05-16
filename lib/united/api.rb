@@ -44,7 +44,10 @@ module United
     def parse_itineraries
       @itineraries = []
 
-      json["data"]["Trips"].first["Flights"].each do |f|
+      trip = json["data"]["Trips"].try(:first)
+      return [] unless trip
+      
+      trip["Flights"].each do |f|
         iti = { segments_attributes: [] }
         iti[:total_travel_time] = f["TravelMinutesTotal"]
 

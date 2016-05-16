@@ -7,9 +7,9 @@ module United
     # routes
     if options[:routes]
       if options[:routes] == 'star_tatl'
-        routes = STAR_ALLIANCE_TATL_ROUTE_PAIRS
+        routes = STAR_ALLIANCE_TATL_ROUTE_PAIRS.shuffle
       elsif options[:routes] == 'star_tatl_back'
-        routes = STAR_ALLIANCE_TATL_ROUTE_PAIRS.map { |from, to| [to, from]}
+        routes = STAR_ALLIANCE_TATL_ROUTE_PAIRS.map { |from, to| [to, from]}.shuffle
       else
         routes = options[:routes]
       end
