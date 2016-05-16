@@ -1,6 +1,6 @@
 module United
 
-  STAR_ALLIANCE_TATL_ROUTE_PAIRS = [["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["SFO", "MUC"], ["SFO", "ZRH"], ["SFO", "CPH"], ["SFO", "IST"], ["LAX", "LHR"], ["LAX", "IST"], ["LAX", "ZRH"], ["LAX", "FRA"], ["LAX", "MUC"], ["SEA", "FRA"], ["YVR", "FRA"], ["YVR", "MUC"], ["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["LAX", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["YYZ", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["YUL", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
+  STAR_ALLIANCE_TATL_ROUTE_PAIRS = [["SFO", "CDG"], ["SFO", "FRA"], ["SFO", "LHR"], ["SFO", "MUC"], ["SFO", "ZRH"], ["SFO", "CPH"], ["SFO", "IST"], ["LAX", "LHR"], ["LAX", "IST"], ["LAX", "ZRH"], ["LAX", "FRA"], ["LAX", "MUC"], ["SEA", "FRA"], ["YVR", "FRA"], ["YVR", "MUC"], ["EWR", "AMS"], ["EWR", "ARN"], ["EWR", "BCN"], ["EWR", "BFS"], ["EWR", "BHX"], ["EWR", "BRU"], ["EWR", "CDG"], ["EWR", "DUB"], ["LAX", "DUB"], ["EWR", "EDI"], ["EWR", "FCO"], ["EWR", "FRA"], ["EWR", "GLA"], ["EWR", "GVA"], ["EWR", "HAM"], ["EWR", "IST"], ["EWR", "LHR"], ["EWR", "LIS"], ["EWR", "MAD"], ["EWR", "MAN"], ["EWR", "MXP"], ["EWR", "OSL"], ["EWR", "SNN"], ["EWR", "STR"], ["EWR", "TXL"], ["EWR", "ZRH"], ["IAD", "AMS"], ["IAD", "CDG"], ["IAD", "DUB"], ["IAD", "BRU"], ["IAD", "MAN"], ["IAD", "FCO"], ["IAD", "FRA"], ["IAD", "GVA"], ["IAD", "LHR"], ["IAD", "MUC"], ["IAD", "ZRH"], ["IAD", "MAD"], ["ORD", "AMS"], ["ORD", "BRU"], ["ORD", "CDG"], ["ORD", "FRA"], ["ORD", "LHR"], ["ORD", "MUC"], ["ORD", "EDI"], ["ORD", "SNN"], ["IAH", "AMS"], ["IAH", "FRA"], ["IAH", "LHR"], ["IAH", "MUC"], ["IAD", "VIE"], ["JFK", "VIE"], ["ORD", "VIE"], ["YYZ", "VIE"], ["IAD", "IST"], ["IAH", "IST"], ["ORD", "IST"], ["JFK", "IST"], ["YYZ", "IST"], ["BOS", "ZRH"], ["JFK", "ZRH"], ["MIA", "ZRH"], ["ORD", "ZRH"], ["YUL", "ZRH"], ["JFK", "GVA"], ["YUL", "GVA"], ["YYZ", "GVA"], ["JFK", "BRU"], ["IAD", "WAW"], ["JFK", "WAW"], ["ORD", "WAW"], ["YYZ", "WAW"], ["ATL", "FRA"], ["BOS", "FRA"], ["DEN", "FRA"], ["DFW", "FRA"], ["DTW", "FRA"], ["JFK", "FRA"], ["MCO", "FRA"], ["MEX", "FRA"], ["SJC", "FRA"], ["MIA", "FRA"], ["PHL", "FRA"], ["YYZ", "FRA"], ["YUL", "FRA"], ["BOS", "MUC"], ["CLT", "MUC"], ["EWR", "MUC"], ["JFK", "MUC"], ["YUL", "MUC"], ["MEX", "MUC"], ["MIA", "MUC"], ["YYZ", "MUC"], ["EWR", "DUS"], ["ORD", "DUS"], ["EWR", "CPH"], ["IAD", "CPH"], ["ORD", "CPH"], ["ORD", "ARN"], ["IAH", "SVG"], ["MIA", "LIS"], ["EWR", "OPO"], ["MIA", "OPO"], ["IAH", "DME"], ["YYZ", "CPH"], ["YYZ", "LHR"], ["YYZ", "MXP"], ["YYZ", "CDG"], ["YYZ", "TLV"], ["YYZ", "ZRH"], ["YYZ", "MAD"], ["YYZ", "FCO"], ["YYZ", "DUB"], ["YYZ", "ATH"], ["YYZ", "BCN"], ["YYZ", "EDI"], ["YYZ", "VCE"], ["YYZ", "MAN"], ["YYZ", "LIS"], ["YUL", "BRU"], ["YUL", "LHR"], ["YUL", "CDG"], ["YUL", "FCO"], ["YUL", "ATH"], ["YUL", "BCN"], ["YUL", "NCE"], ["YYC", "LHR"], ["YYT", "LHR"], ["YEG", "LHR"], ["YHZ", "LHR"], ["YOW", "LHR"], ["YYC", "FRA"], ["YOW", "FRA"]]
   
   def self.search(options)
     
@@ -52,18 +52,28 @@ module United
     routes.each do |from_airport, to_airport|
       dates.each do |date|
 
-        rp = United::ResultsPage.new
+        # rp = United::ResultsPage.new
 
-        rp.set_options({
-          date: date,
+        options = {
+          local_date: date,
           from_airport: from_airport, 
           to_airport: to_airport,
-          seats: options[:seats],
-          cabin: 'Business'
-        })
+          seats: options[:seats]
+          # ,
+          # cabin: :business
+        }
 
-        rp.load_results
-        rp.save_results
+        puts "\nSearching #{from_airport} > #{to_airport} on #{date}"
+
+        api = United::Api.new(options)
+        api.call!
+        itineraries = api.parse_itineraries
+
+        attrs = options.merge(itineraries: itineraries)
+        UnitedSearch.import(attrs)
+
+        # rp.load_results
+        # rp.save_results
 
         # puts "Press Enter..."
         # a = gets.chomp
@@ -79,15 +89,15 @@ end
 Dir[Rails.root.to_s + "/lib/united/*.rb"].each { |file| require(file) }
 
 
-# United.search(date: '2015-04-28', routes: 'star_tatl', seats: 1)
-# United.search(date: '2015-06-19', routes: 'star_tatl', seats: 2)
-# United.search(date: '2015-04-28', from: 'ewr', to:'fco', seats: 1)
+# United.search(dates: ['2016-07-03'], routes: 'star_tatl_back', seats: 2)
+# United.search(dates: ['2016-07-06','2015-06-18', '2015-06-19'], routes: 'star_tatl', seats: 2)
+# United.search(date: '2016-07-06', from: 'CDG', to:'LAX', seats: 2)
 # United.search(date: '2015-04-28', from: [ 'sfo' ], to:'cdg', seats: 1)
 
 # United.search(date: '2015-04-28', from: [ 'sfo' ], to: ['iad','ewr','jfk'], seats: 1)
 
 
-
+# United.search(dates: ['2015-06-20'], routes: 'star_tatl', seats: 2)
 
 
 

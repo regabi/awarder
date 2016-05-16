@@ -38,7 +38,11 @@ class Segment < ActiveRecord::Base
     end
 
     print "[#{local_date}] #{attributes[:airline_code]} #{attributes[:flight_number]} #{attributes[:from_airport]} > #{attributes[:to_airport]} "
-    print " #{attributes[:cabins_available].join(', ')} "
+    # print " #{attributes[:cabins_available].join(', ')} "
+    print " economy" if attributes[:economy_available]
+    print " premium_economy" if attributes[:premium_economy_available]
+    print " business" if attributes[:business_available]
+    print " first" if attributes[:first_available]
 
     if segment = Segment.where({
         from_airport:  attributes[:from_airport], 

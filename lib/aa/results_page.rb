@@ -140,7 +140,6 @@ module AA
       @itineraries = [ ]
     
 # @results_page.open_in_browser
-debugger
       @results_page.search('div.aa_flightListContainerBot').each do |itinerary_div|
         if itinerary = parse_itinerary(itinerary_div)
           @itineraries << itinerary
@@ -150,8 +149,9 @@ debugger
 
     def parse_itinerary(div)
       itinerary_attributes = { segments_attributes: [] }
-debugger
+
       div.search('.ca_flightSlice').each do |segment_div|
+        debugger
         segment_code = segment_div.search('.aa_flightList_col-2').first.content.strip
 
         if segment_code.to_i.to_s == segment_code
@@ -193,3 +193,21 @@ debugger
 
   end
 end
+
+
+if false
+  rp = AA::ResultsPage.new
+
+  rp.set_options({
+    date: Date.parse('2015-07-01'),
+    from_airport: 'SFO', 
+    to_airport: 'LAX',
+    seats: 2,
+    cabin: 'Business'
+  })
+
+  rp.load_results
+  # rp.save_results
+end
+
+

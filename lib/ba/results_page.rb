@@ -1,4 +1,4 @@
-module United
+module BA
   class ResultsPage
 
     def initialize
@@ -11,15 +11,28 @@ module United
       @from_airport = options[:from_airport] if options[:from_airport]
       @to_airport = options[:to_airport] if options[:to_airport]
       @date = options[:date] if options[:date]
+      
+      @cabin = 
+        case options[:cabin]
+        when :economy
+          'M'
+        when :premium_economy
+          'W'
+        when :business
+          'C'
+        when :first
+          'F'
+        end
+
       @cabin = options[:cabin] if options[:cabin]
       @seats = options[:seats] if options[:seats]
     end
 
     def set_default_options
-      @from_airport = 'ORD'  
-      @to_airport = 'CPH'
-      @date = Date.new(2015, 06, 21)
-      @cabin = 'Business'
+      @from_airport = 'JFK'  
+      @to_airport = 'LHR'
+      @date = Date.new(2015, 8, 21)
+      @cabin = 'C' # business
       @seats = 2
     end
 
@@ -40,9 +53,10 @@ module United
         puts "Searching #{search_to_s}"
         validate_search!
 
-        load_form
+        load_search_form
         enter_form_values
         submit_form
+      debugger
         parse_results
       rescue
         @results_page.open_in_browser if @results_page
@@ -52,11 +66,12 @@ module United
 
     def save_results
       # premium_itineraries = @itineraries.select { |i| i.business_miles or i.first_miles }
-      attrs = united_search_attributes.merge(itineraries: @itineraries)
+      attrs = search_attributes.merge(itineraries: @itineraries)
+
       UnitedSearch.import(attrs)
     end
 
-    def united_search_attributes
+    def search_attributes
       { 
         from_airport: @from_airport,
         to_airport: @to_airport,
@@ -65,11 +80,40 @@ module United
       }
     end
 
-    def load_form
+    def load_search_page
+      return @search_page if @search_page
+
+      print "logging in... "
+      @login_page = Mechanize.new.get('https://www.britishairways.com/travel/redeem/execclub/_gf/en_us?eId=106019&tab_selected=redeem&redemption_type=STD_RED')
+      @login_form = @login_page.form_with(name: 'toploginform')
+
+      membership_number_field = @login_form.fields_with(name: 'membershipNumber').first
+      raise "can't find 'membershipNumber' field" unless membership_number_field
+      membership_number_field.value = '97736164'
+
+      password_field = @login_form.fields_with(name: 'password').first
+      raise "can't find 'password' field" unless password_field
+      password_field.value = 'GaTDeC7T'
+
+      remember_checkbox = @login_form.checkbox_with(name: 'rememberLogin')
+      raise "can't find 'remember' checkbox" unless remember_checkbox
+      remember_checkbox.check
+
+debugger
+      submit_button = @login_form.buttons_with(class: 'secondary').first
+      @search_page = @login_form.submit(submit_button)
+
+      puts "done"
+
+      @search_page
+    end
+
+    def load_search_form
       return @form if @form
 
-      page = Mechanize.new.get('https://www.united.com/web/en-US/apps/booking/flight/searchOW.aspx?CS=N')
-      @form = page.forms[1]
+      page = load_search_page
+      debugger
+      @form = page.form_with(id: 'plan_redeem_trip')
 
       unless @form
         raise "can't find form on search page"
@@ -77,43 +121,37 @@ module United
     end
       
     def enter_form_values
-      debugger
-
-      from_field = @form.fields_with(name: 'Trips[0].Origin').first
+      from_field = @form.field_with(name: 'departurePoint')
       raise "can't find 'from' field" unless from_field
       from_field.value = @from_airport
 
-      destination_field = @form.fields_with(name: 'Trips[0].Destination').first
+      destination_field = @form.field_with(name: 'destinationPoint')
       raise "can't find 'destination' field" unless destination_field
       destination_field.value = @to_airport
 
-      date_field1 = @form.fields_with(name: 'Trips[0].DepartDate').first
-      raise "can't find 'date1' field" unless date_field1
-      date_field1.value = @date.strftime('%Y-%m-%d')
+      date_field = @form.field_with(name: 'departInputDate')
+      raise "can't find 'date1' field" unless date_field
+      date_field.value = @date.strftime('%m/%d/%Y')
 
-      # cabin_select = @form.fields_with(name: 'CabinType', value: 'businessFirst').first
-      cabin_business_radio = @form.radiobutton_with(name: 'AwardCabinType', value: 'awardBusinessFirst')
-      cabin_business_radio.check
+      oneway_checkbox = @form.checkbox_with(name: 'oneWay')
+      raise "can't find 'oneWay' checkbox" unless oneway_checkbox
+      oneway_checkbox.check
 
-      # adults_select = @form.fields_with(name: 'ctl00$ContentInfo$SearchForm$paxSelection$Adults$cboAdults').first
-      adults_field = @form.fields_with(name: 'NumOfAdults').first      
-      raise "can't find 'adult' field" unless adults_field
-      adults_field.value = @seats
+      cabin_select = @form.field_with(id: 'cabin')
+      raise "can't find 'cabin' field" unless cabin_select
+      cabin_select.value = @cabin
 
-      # award search
-      # reward_radio = @form.radiobutton_with(name: 'RedeemMiles', value: 'rMiles')
-      # raise "can't find 'reward' radio" unless reward_radio
-      # reward_radio.check
+      adults_select = @form.field_with(name: 'NumberOfAdults')
+      raise "can't find 'adult' field" unless adults_select
+      adults_select.value = @seats
     end
 
     def submit_form
-      # submit_button = @form.buttons_with(name: 'ctl00$ContentInfo$SearchForm$searchbutton').first
-      submit_button = @form.buttons_with(id: 'btn-search').first
-      debugger
+      submit_button = @form.buttons_with(id: 'submitBtn').first
       @results_page = @form.submit(submit_button)
     end
 
-    def parse_results
+    def parse_results    
       @itineraries = [ ]
 
       @results_page.search('table.rewardResults > tr').each do |tr_row|
@@ -358,3 +396,24 @@ module United
     end
   end
 end
+
+
+
+
+if false
+  rp = BA::ResultsPage.new
+
+  rp.set_options({
+    date: Date.parse('2015-07-01'),
+    from_airport: 'SFO', 
+    to_airport: 'LAX',
+    seats: 2,
+    cabin: :business
+  })
+
+  rp.load_results
+  # rp.save_results
+end
+
+
+
