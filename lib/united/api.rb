@@ -70,13 +70,23 @@ module United
         f["Products"].map do |p| 
           segment[:tmp_class_by_product][p["Index"]] = \
             if !p["BookingCode"].empty?
-              p["DataSourceLabelStyle"]
+              desc = p["Description"].downcase
+              if desc.match('economy')
+                :economy
+              elsif desc.match('business')
+                :business
+              elsif desc.match('first')
+                :first
+              else
+                debugger
+                raise 'Missing class from Description'
+              end
             else
               nil
             end
         end
         
-        # debugger if segment[:flight_number].to_i == 433
+        # debugger if segment[:flight_number].to_i == 1928
 
         iti[:segments_attributes] << segment
 
@@ -101,21 +111,26 @@ module United
             conn["Products"].map do |p| 
               segment[:tmp_class_by_product][p["Index"]] = \
                 if !p["BookingCode"].empty?
-                  p["DataSourceLabelStyle"]
+                  desc = p["Description"].downcase
+                  if desc.match('economy')
+                    :economy
+                  elsif desc.match('business')
+                    :business
+                  elsif desc.match('first')
+                    :first
+                  else
+                    debugger
+                    raise 'Missing class from Description'
+                  end
                 else
                   nil
                 end
             end
 
-            # debugger if segment[:flight_number].to_i == 433
+            # debugger if segment[:flight_number].to_i == 1928
             iti[:segments_attributes] << segment
           end
 
-          class_string_to_sym = {
-            'Economy' => :economy,
-            'Business' => :business,
-            'First' => :first
-          }
 
           saver_products = f["Products"].find_all {|p| p["AwardType"] == 'Saver' }
 
@@ -124,8 +139,8 @@ module United
             iti[:economy_usd] = p["TaxAndFees"]["Amount"]
 
             iti[:segments_attributes].each do |s|
-              class_string = s[:tmp_class_by_product][p["Index"]]
-              field_name = "#{class_string_to_sym[class_string]}_available".to_sym
+              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
+              debugger if field_name == :_available
               s[field_name] = true
             end
           end
@@ -135,8 +150,7 @@ module United
             iti[:business_usd] = p["TaxAndFees"]["Amount"]
 
             iti[:segments_attributes].each do |s|
-              class_string = s[:tmp_class_by_product][p["Index"]]
-              field_name = "#{class_string_to_sym[class_string]}_available".to_sym
+              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
               s[field_name] = true
             end
           end
@@ -146,8 +160,7 @@ module United
             iti[:first_usd] = p["TaxAndFees"]["Amount"]
 
             iti[:segments_attributes].each do |s|
-              class_string = s[:tmp_class_by_product][p["Index"]]
-              field_name = "#{class_string_to_sym[class_string]}_available".to_sym
+              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
               s[field_name] = true
             end
           end
