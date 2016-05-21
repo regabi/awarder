@@ -71,7 +71,7 @@ module United
           segment[:tmp_class_by_product][p["Index"]] = \
             if !p["BookingCode"].empty?
               desc = p["Description"].downcase
-              if desc.match('economy')
+              if desc.match('economy') or desc.match('coach')
                 :economy
               elsif desc.match('business')
                 :business
@@ -79,7 +79,7 @@ module United
                 :first
               else
                 debugger
-                raise 'Missing class from Description'
+                raise "Cant parse Description: #{desc}"
               end
             else
               nil
@@ -112,7 +112,7 @@ module United
               segment[:tmp_class_by_product][p["Index"]] = \
                 if !p["BookingCode"].empty?
                   desc = p["Description"].downcase
-                  if desc.match('economy')
+                  if desc.match('economy') or desc.match('coach')
                     :economy
                   elsif desc.match('business')
                     :business
@@ -120,7 +120,7 @@ module United
                     :first
                   else
                     debugger
-                    raise 'Missing class from Description'
+                    raise "Cant parse Description: #{desc}"
                   end
                 else
                   nil

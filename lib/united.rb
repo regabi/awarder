@@ -65,8 +65,14 @@ module United
 
         puts "\n\nSearching #{from_airport} > #{to_airport} on #{date}"
 
-        api = United::Api.new(options)
-        api.call!
+        begin
+          api = United::Api.new(options)
+          api.call!
+        rescue Net::ReadTimeout, Net::OpenTimeout
+          sleep(rand(3))
+          retry
+        end
+
         itineraries = api.parse_itineraries
 
         attrs = options.merge(itineraries: itineraries)
