@@ -46,123 +46,51 @@ module United
 
       trip = json["data"]["Trips"].try(:first)
       return [] unless trip
-      
+
       trip["Flights"].each do |f|
         iti = { segments_attributes: [] }
         iti[:total_travel_time] = f["TravelMinutesTotal"]
 
         # First segment
-        segment = {}
-        segment[:from_airport] = f["Origin"]
-        segment[:to_airport] = f["Destination"]
-
-        segment[:local_departs_at] = parse_datetime(f["DepartDateTime"])
-        segment[:local_arrives_at] =parse_datetime(f["DepartDateTime"])
-        segment[:travel_time] = f["TravelMinutes"]
-
-        segment[:airline_code] = f["OperatingCarrier"]
-        segment[:flight_number] =f["FlightNumber"]
-
-        segment[:aircraft] = f["EquipmentDisclosures"]["EquipmentDescription"]
-        segment[:seats_searched] = @seats
-
-        segment[:tmp_class_by_product] = {} 
-        f["Products"].map do |p| 
-          segment[:tmp_class_by_product][p["Index"]] = \
-            if !p["BookingCode"].empty?
-              desc = p["Description"].downcase
-              if desc.match('economy') or desc.match('coach')
-                :economy
-              elsif desc.match('business')
-                :business
-              elsif desc.match('first')
-                :first
-              else
-                debugger
-                raise "Cant parse Description: #{desc}"
-              end
-            else
-              nil
-            end
-        end
-        
-        # debugger if segment[:flight_number].to_i == 1928
-
-        iti[:segments_attributes] << segment
+        iti[:segments_attributes] << parse_segment(f)
 
         # Other segments
         if f["Connections"]
           f["Connections"].each do |conn|
-            segment = {}
-            segment[:from_airport] = conn["Origin"]
-            segment[:to_airport] = conn["Destination"]
-
-            segment[:local_departs_at] = parse_datetime(conn["DepartDateTime"])
-            segment[:local_arrives_at] = parse_datetime(conn["DestinationDateTime"])
-            segment[:travel_time] = conn["TravelMinutes"]
-
-            # segment[:travel_time] = 0
-            segment[:airline_code] = conn["OperatingCarrier"]
-            segment[:flight_number] = conn["FlightNumber"]
-            segment[:aircraft] = conn["EquipmentDisclosures"]["EquipmentDescription"]
-            segment[:seats_searched] = @seats
-
-            segment[:tmp_class_by_product] = {}
-            conn["Products"].map do |p| 
-              segment[:tmp_class_by_product][p["Index"]] = \
-                if !p["BookingCode"].empty?
-                  desc = p["Description"].downcase
-                  if desc.match('economy') or desc.match('coach')
-                    :economy
-                  elsif desc.match('business')
-                    :business
-                  elsif desc.match('first')
-                    :first
-                  else
-                    debugger
-                    raise "Cant parse Description: #{desc}"
-                  end
-                else
-                  nil
-                end
-            end
-
-            # debugger if segment[:flight_number].to_i == 1928
-            iti[:segments_attributes] << segment
+            iti[:segments_attributes] << parse_segment(conn)
           end
+        end
 
+        saver_products = f["Products"].find_all {|p| p["AwardType"] == 'Saver' }
 
-          saver_products = f["Products"].find_all {|p| p["AwardType"] == 'Saver' }
+        if p = saver_products.find { |sp| sp["ProductType"] == "MIN-ECONOMY-SURP-OR-DISP" }
+          iti[:economy_miles] = p["Prices"].first["Amount"].to_i
+          iti[:economy_usd] = p["TaxAndFees"]["Amount"]
 
-          if p = saver_products.find { |sp| sp["ProductType"] == "MIN-ECONOMY-SURP-OR-DISP" }
-            iti[:economy_miles] = p["Prices"].first["Amount"].to_i
-            iti[:economy_usd] = p["TaxAndFees"]["Amount"]
-
-            iti[:segments_attributes].each do |s|
-              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
-              debugger if field_name == :_available
-              s[field_name] = true
-            end
+          iti[:segments_attributes].each do |s|
+            field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
+            debugger if field_name == :_available
+            s[field_name] = true
           end
+        end
 
-          if p = saver_products.find { |sp| sp["ProductType"] == "BUSINESS-SURPLUS" }
-            iti[:business_miles] = p["Prices"].first["Amount"].to_i
-            iti[:business_usd] = p["TaxAndFees"]["Amount"]
+        if p = saver_products.find { |sp| sp["ProductType"] == "BUSINESS-SURPLUS" }
+          iti[:business_miles] = p["Prices"].first["Amount"].to_i
+          iti[:business_usd] = p["TaxAndFees"]["Amount"]
 
-            iti[:segments_attributes].each do |s|
-              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
-              s[field_name] = true
-            end
+          iti[:segments_attributes].each do |s|
+            field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
+            s[field_name] = true
           end
+        end
 
-          if p = saver_products.find { |sp| sp["ProductType"] == "FIRST-SURPLUS" }
-            iti[:first_miles] = p["Prices"].first["Amount"].to_i
-            iti[:first_usd] = p["TaxAndFees"]["Amount"]
+        if p = saver_products.find { |sp| sp["ProductType"] == "FIRST-SURPLUS" }
+          iti[:first_miles] = p["Prices"].first["Amount"].to_i
+          iti[:first_usd] = p["TaxAndFees"]["Amount"]
 
-            iti[:segments_attributes].each do |s|
-              field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
-              s[field_name] = true
-            end
+          iti[:segments_attributes].each do |s|
+            field_name = "#{s[:tmp_class_by_product][p["Index"]]}_available".to_sym
+            s[field_name] = true
           end
         end
 
@@ -204,6 +132,45 @@ module United
 
     def flights
       
+    end
+
+    def parse_segment(f)
+      segment = {}
+      segment[:from_airport] = f["Origin"]
+      segment[:to_airport] = f["Destination"]
+
+      segment[:local_departs_at] = parse_datetime(f["DepartDateTime"])
+      segment[:local_arrives_at] =parse_datetime(f["DestinationDateTime"])
+      segment[:travel_time] = f["TravelMinutes"]
+
+      segment[:airline_code] = f["OperatingCarrier"]
+      segment[:flight_number] =f["FlightNumber"]
+
+      segment[:aircraft] = f["EquipmentDisclosures"]["EquipmentDescription"]
+      segment[:seats_searched] = @seats
+
+      segment[:tmp_class_by_product] = {} 
+      
+      f["Products"].map do |p| 
+        segment[:tmp_class_by_product][p["Index"]] = \
+          if !p["BookingCode"].empty?
+            desc = p["Description"].downcase
+            if desc.match('economy') or desc.match('coach')
+              :economy
+            elsif desc.match('business')
+              :business
+            elsif desc.match('first')
+              :first
+            else
+              debugger
+              raise "Cant parse Description: #{desc}"
+            end
+          else
+            nil
+          end
+      end
+      
+      segment
     end
 
     private

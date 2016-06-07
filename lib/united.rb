@@ -97,6 +97,10 @@ Dir[Rails.root.to_s + "/lib/united/*.rb"].each { |file| require(file) }
 
 # United.search(dates: ['2016-07-01','2016-07-02','2016-07-03'], routes: 'star_tatl_back', seats: 2)
 # United.search(dates: ['2016-06-16'], routes: 'star_tatl', seats: 2)
+
+# United.search(dates: ['2016-06-16'], from: 'MCO', to: 'FRA', seats: 2)
+
+
 # United.search(date: '2016-07-06', from: 'CDG', to:'LAX', seats: 2)
 # United.search(date: '2015-04-28', from: [ 'sfo' ], to:'cdg', seats: 1)
 

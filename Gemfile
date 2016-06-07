@@ -39,6 +39,7 @@ gem 'acts_as_list'
 gem 'capybara'
 gem 'poltergeist'
 gem 'phantomjs'
+gem 'selenium-webdriver'
 
 gem 'httparty'
 gem 'oj'

@@ -2,7 +2,8 @@ require 'capybara'
 require 'capybara/dsl'
 require 'capybara/poltergeist'
 
-Capybara.default_driver = :poltergeist
+# Capybara.default_driver = :poltergeist
+Capybara.default_driver = :selenium
 Capybara.run_server = false
 
 module AA
@@ -28,8 +29,9 @@ module AA
         enter_form_values
         submit_form
         parse_results
-      rescue
-        @results_page.open_in_browser if @results_page
+      rescue => ex
+        debugger
+        # @results_page.open_in_browser if @results_page
         raise
       end
     end
@@ -115,8 +117,9 @@ module AA
       # adults_select.value = @seats
       page.select(@seats, from: 'awardFlightSearchForm.adultPassengerCount')
 
-    rescue
-      self.page.open_in_browser
+    rescue => ex
+      debugger
+      # self.page.open_in_browser
       raise
     end
 
@@ -137,22 +140,30 @@ module AA
       end
 
       @results_page = Nokogiri::HTML(self.page.html)
+
+      @local_date = Date.parse(@results_page.search('div.selectedFlight #flightTabDate_0').text)
+
       @itineraries = [ ]
-    
-# @results_page.open_in_browser
       @results_page.search('div.aa_flightListContainerBot').each do |itinerary_div|
         if itinerary = parse_itinerary(itinerary_div)
           @itineraries << itinerary
         end
       end
+
+      @itineraries
     end
 
     def parse_itinerary(div)
       itinerary_attributes = { segments_attributes: [] }
 
+      itinerary_attributes[:total_travel_time] = nil
+      itinerary_attributes[:business_miles] = nil
+      itinerary_attributes[:business_usd] = nil
+
       div.search('.ca_flightSlice').each do |segment_div|
-        debugger
-        segment_code = segment_div.search('.aa_flightList_col-2').first.content.strip
+        attrs = {}
+
+        segment_code = segment_div.search('.aa_flightList_col-2 .flight_logo_num').first.content
 
         if segment_code.to_i.to_s == segment_code
           # AA flight
@@ -166,10 +177,45 @@ module AA
 
         attrs[:segment_code] = "#{attrs[:airline_code]}#{attrs[:flight_number]}"
 
-        debugger
-        true
-      end
 
+        # TODO: Fix when date changes
+        attrs[:local_date] = @local_date
+
+        attrs[:from_airport] = segment_div.search('.aa_flightList_col-3 p span').first.content
+        time = segment_div.search('.aa_flightList_col-3 p strong').first.content
+        attrs[:local_departs_at] = DateTime.parse("#{@local_date} #{time}")
+
+        attrs[:to_airport] = segment_div.search('.aa_flightList_col-4 p span').first.content
+        time = segment_div.search('.aa_flightList_col-4 p strong').first.content
+        attrs[:local_arrives_at] = DateTime.parse("#{@local_date} #{time}")
+
+        segment_div.search("table tr td").each do |td|
+          key = td.children.first.text.downcase.strip
+          case key
+          when 'cabin:'
+            value = td.children[1].text.downcase.strip
+            case value
+            when 'business'
+              # TODO: only if Saver award!
+              attrs[:business_available] = true
+            end
+
+          when 'aircraft:'
+            value = td.children[1].children.first.children.first.text
+            attrs[:aircraft] = value
+      
+          when 'total travel time:'
+            value = td.children[1].text
+            match = value.match(/(\d{1,2})hr\s?(\d{1,2})min/)
+            hours = match[1].to_i
+            minutes = match[2].to_i
+            itinerary_attributes[:total_travel_time] = 60 * hours + minutes
+          end
+        end
+
+        # attrs[:travel_time] = nil
+        itinerary_attributes[:segments_attributes] << attrs
+      end
 
       itinerary_attributes
     end
