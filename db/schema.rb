@@ -11,9 +11,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160731231848) do
+ActiveRecord::Schema.define(version: 20160801000101) do
 
-  create_table "flights", force: :cascade do |t|
+  create_table "flights_dep", force: :cascade do |t|
     t.string   "from_airport",         limit: 255
     t.string   "to_airport",           limit: 255
     t.datetime "local_date"
@@ -49,6 +49,8 @@ ActiveRecord::Schema.define(version: 20160731231848) do
     t.datetime "created_at"
   end
 
+  add_index "itineraries", ["segment_ids_cache"], name: "index_itineraries_on_segment_ids_cache", using: :btree
+
   create_table "itineraries_segments", force: :cascade do |t|
     t.integer  "itinerary_id", limit: 4
     t.integer  "segment_id",   limit: 4
@@ -57,25 +59,29 @@ ActiveRecord::Schema.define(version: 20160731231848) do
     t.datetime "created_at"
   end
 
+  add_index "itineraries_segments", ["itinerary_id"], name: "index_itineraries_segments_on_itinerary_id", using: :btree
+
   create_table "segments", force: :cascade do |t|
-    t.integer  "flight_id",          limit: 4
-    t.integer  "position",           limit: 4
-    t.string   "from_airport",       limit: 255
-    t.string   "to_airport",         limit: 255
-    t.string   "airline_code",       limit: 255
-    t.string   "flight_number",      limit: 255
-    t.datetime "local_date"
+    t.integer  "flight_id_deprecated", limit: 4
+    t.integer  "position_deprecated",  limit: 4
+    t.string   "from_airport",         limit: 255
+    t.string   "to_airport",           limit: 255
+    t.string   "airline_code",         limit: 255
+    t.string   "flight_number",        limit: 255
+    t.date     "local_date"
     t.datetime "local_departs_at"
     t.datetime "local_arrives_at"
-    t.integer  "travel_time",        limit: 4
-    t.string   "aircraft",           limit: 255
-    t.datetime "created_at",                     null: false
-    t.datetime "updated_at",                     null: false
-    t.integer  "seats_searched",     limit: 4
-    t.boolean  "economy_available",  limit: 1
-    t.boolean  "business_available", limit: 1
-    t.boolean  "first_available",    limit: 1
+    t.integer  "travel_time",          limit: 4
+    t.string   "aircraft",             limit: 255
+    t.datetime "created_at",                       null: false
+    t.datetime "updated_at",                       null: false
+    t.integer  "seats_searched",       limit: 4
+    t.boolean  "economy_available",    limit: 1
+    t.boolean  "business_available",   limit: 1
+    t.boolean  "first_available",      limit: 1
   end
+
+  add_index "segments", ["local_date", "airline_code", "flight_number"], name: "index_segments_on_local_date_and_airline_code_and_flight_number", using: :btree
 
   create_table "united_searches", force: :cascade do |t|
     t.date     "local_date"
